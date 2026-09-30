@@ -1,0 +1,38 @@
+import os
+import google.generativeai as genai
+from dotenv import load_dotenv
+load_dotenv()
+
+class GeminiDocumentGenerator:
+    def _init_(self):
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key and api_key != "your_api_key_here":
+            genai.configure(api_key=api_key)
+            self.model = genai.GenerativeModel("gemini-1.5-pro")
+        else:
+            self.model = None
+
+    def generate_document(self, document_type, parties, terms, dates):
+        prompt = (
+            f'Generate a comprehensive legal document titled "{document_type}"\n'
+            f"Involved parties: {parties}\n"
+            f"Effective Date: {dates}\n"
+            f"Terms and conditions: {terms}\n"
+            f"Ensure formal legal structure with multiple sections and legal clauses."
+        )
+        if self.model:
+            try:
+                response = self.model.generate_content(prompt)
+                return response.text
+            except Exception as e:
+                return f"Gemini Error: {e}"
+
+        # Fallback if no API key
+        return f"""{document_type.upper()} AGREEMENT
+Effective Date: {dates}
+Parties: {parties}
+
+1. TERMS: {terms}
+2. CONFIDENTIALITY: Both parties agree to maintain confidentiality.
+3. SIGNATURES: Party A ___ Party B ___
+"""

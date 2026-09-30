@@ -1,0 +1,58 @@
+import streamlit as st
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(_file_), '..')))
+
+from ai_core.gemini_generator import GeminiDocumentGenerator
+from docx import Document
+from fpdf import FPDF
+from io import BytesIO
+
+st.set_page_config(page_title="LegalEase", layout="wide")
+st.title("⚖️ LegalEase - AI Legal Document Generator")
+
+document_type = st.text_input("Document Type (e.g., NDA, Agreement)")
+parties = st.text_area("Parties Involved")
+terms = st.text_area("Terms & Conditions (use ; for bullets)")
+dates = st.text_input("Effective Date")
+
+if 'doc' not in st.session_state:
+    st.session_state.doc = ""
+
+def format_docx(text, doc_type):
+    doc = Document()
+    doc.add_heading(doc_type, 0)
+    for line in text.split('\n'):
+        if line.strip(): doc.add_paragraph(line.strip())
+    return doc
+
+def format_pdf(text, doc_type):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, txt=doc_type, ln=True, align='C')
+    pdf.set_font("Arial", size=11)
+    clean = text.replace('“','"').replace('”','"')
+    pdf.multi_cell(0, 8, txt=clean)
+    return pdf
+
+if st.button("Generate Document"):
+    gen = GeminiDocumentGenerator()
+    st.session_state.doc = gen.generate_document(document_type, parties, terms, dates)
+    st.success("Generated!")
+
+if st.session_state.doc:
+    st.text_area("Preview & Edit", value=st.session_state.doc, height=400, key="edit")
+    edited = st.session_state.edit
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.download_button("Download TXT", edited, file_name=f"{document_type}.txt")
+    with c2:
+        d = format_docx(edited, document_type)
+        bio = BytesIO()
+        d.save(bio)
+        st.download_button("Download DOCX", bio.getvalue(), file_name=f"{document_type}.docx")
+    with c3:
+        p = format_pdf(edited, document_type)
+        pdf_bytes = p.output(dest='S').encode('latin-1','ignore')
+        st.download_button("Download PDF", pdf_bytes, file_name=f"{document_type}.pdf")
